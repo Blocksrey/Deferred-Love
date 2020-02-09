@@ -109,7 +109,7 @@ local function newobject(mesh)
 	local rot = mat3.identity
 	local scale = vec3.new(1, 1, 1)
 
-	--local changed = false
+	local changed = false
 
 	local vertT = {
 		1, 0, 0, 0,
@@ -332,12 +332,14 @@ end
 local meshes = {}
 --meshes[1] = newtest(1, 1, 1, 1)
 
-for i = 1, 3 do
+for i = 1, 256 do
 	meshes[i] = newtet(1, 1, 1)
 	meshes[i].setpos(vec3.new(
-		0, 0, i
+		math.random()*20 - 10,
+		math.random()*20 - 10,
+		math.random()*20 - 10
 	))
-	--meshes[i].setrot(mat3.fromquat(quat.rand()))
+	meshes[i].setrot(mat3.fromquat(quat.random()))
 end
 
 

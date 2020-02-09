@@ -128,7 +128,7 @@ function quat.mat3(m)
 	end
 end
 
-function quat.rand()
+function quat.random()
 	local l0 = ln(1 - rand())
 	local l1 = ln(1 - rand())
 	local a0 = tau*rand()
