@@ -2,7 +2,7 @@ local ffi = require("ffi")
 
 ffi.cdef([[
 	typedef struct {
-		double x, y, z;
+		float x, y, z;
 	} vec3;
 ]])
 

@@ -16,7 +16,7 @@ const vec3 mask = vec3(0.0, 1.0, -1.0);
 const vec4 atmoscolor = vec4(0.6, 0.85, 0.92, 1.0);
 const vec4 pointcolor = vec4(0.5, 1.0, 0.5, 1.0);
 
-const vec3 pointpos = vec3(0.0, 0.0, 0.0);
+const vec3 pointpos = vec3(0.0, 5.0, 0.0);
 
 float hemibrightness(float d){
 	return 0.5*d + 0.5;

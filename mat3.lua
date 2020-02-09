@@ -5,7 +5,7 @@ local sin = math.sin
 
 ffi.cdef([[
 	typedef struct {
-		double
+		float
 			xx, yx, zx,
 			xy, yy, zy,
 			xz, yz, zz;
@@ -90,6 +90,16 @@ function mat3.fromeuleryxz(y, x, z)
 	)
 end
 
+function mat3.fromquat(q)
+	local w, x, y, z = q:dump()
+	local d = w*w + x*x + y*y + z*z
+	return new(
+		2*(w*w + x*x)/d - 1, 2*(x*y - z*w)/d,     2*(x*z + y*w)/d,
+		2*(x*y + z*w)/d,     2*(w*w + y*y)/d - 1, 2*(y*z - x*w)/d,
+		2*(x*z - y*w)/d,     2*(y*z + x*w)/d,     2*(w*w + z*z)/d - 1
+	)
+end
+
 function meta.__tostring(a)
 	return "mat3("..
 		a.xx..", "..a.yx..", "..a.zx..", "..
@@ -170,7 +180,6 @@ end
 mat3.identity = new(1, 0, 0, 0, 1, 0, 0, 0, 1)
 
 return mat3
-
 
 --[[
 transpose(mat3)

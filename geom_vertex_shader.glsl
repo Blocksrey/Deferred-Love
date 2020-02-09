@@ -24,8 +24,7 @@ varying vec4 wnorm;
 vec4 position(mat4 I, vec4 vert){
 	//Transform the vert info to world space
 	wvert = vertT*vert;
-	wnorm = normT*norm;
-	//wnorm = vec4(normalize(wnorm.xyz), 0);
+	wnorm = vec4(normalize((normT*norm).xyz), 1.0);
 
 	//Convert the world space vertex into (almost) frustum coords
 	vec4 fvert = frusT*wvert;
