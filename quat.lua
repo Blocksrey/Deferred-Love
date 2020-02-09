@@ -1,8 +1,13 @@
 local ffi = require("ffi")
 
-local cos        = math.cos
-local sin        = math.sin
-local acos       = math.acos
+local cos  = math.cos
+local sin  = math.sin
+local acos = math.acos
+local rand = math.random
+local ln   = math.log
+
+--constants
+local tau  = 2*math.pi
 
 ffi.cdef([[
 	typedef struct {
@@ -29,6 +34,10 @@ quat.type = "quat"
 quat.new = new
 
 meta.__index = quat
+
+function quat.dump(q)
+	return q.w, q.x, q.y, q.z
+end
 
 function quat.inv(q)
 	return new(q.w, -q.x, -q.y, -q.z)
@@ -117,6 +126,21 @@ function quat.mat3(m)
 		local s = 2*(1 - xx - yy + zz)^(1/2)
 		return new((xy - yx)/s, (zx + xz)/s, (zy + yz)/s, 1/4*s)
 	end
+end
+
+function quat.rand()
+	local l0 = ln(1 - rand())
+	local l1 = ln(1 - rand())
+	local a0 = tau*rand()
+	local a1 = tau*rand()
+	local m0 = (l0/(l0 + l1))^0.5
+	local m1 = (l1/(l0 + l1))^0.5
+	return new(
+		m0*cos(a0),
+		m0*sin(a0),
+		m1*cos(a1),
+		m1*sin(a1)
+	)
 end
 
 quat.identity = new(1, 0, 0, 0)

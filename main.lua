@@ -1,6 +1,6 @@
 local mat3 = require("mat3")
 local vec3 = require("vec3")
-
+local quat = require("quat")
 
 
 --load in the geometry shader and compositing shader
@@ -156,8 +156,6 @@ local function newobject(mesh)
 	return self
 end
 
-
-
 --basic definition
 local vertdef = {
 	{"VertexPosition", "float", 3},
@@ -242,17 +240,21 @@ local function drawmeshes(frusT, meshes)
 	for i = 1, #meshes do
 		meshes[i].draw()
 	end
+
 	love.graphics.setDepthMode()
 	love.graphics.setShader(compshader)
 	love.graphics.setCanvas(compbuffer)
 	compshader:send("wverts", geombuffer[1])
 	compshader:send("wnorms", geombuffer[2])
 	love.graphics.draw(geombuffer[3])
+
 	local w, h = love.graphics.getDimensions()
 	--love.graphics.rectangle("fill", 0, 0, w, h)
 	love.graphics.setShader()
 	love.graphics.setCanvas()
 	love.graphics.draw(compbuffer[1], 0, h, 0, 1, -1)--just straight up color
+
+	love.graphics.print(#meshes, 0, 16)
 end
 
 
@@ -328,7 +330,16 @@ end
 
 
 local meshes = {}
-meshes[1] = newtet(1, 1, 1)--newtest(1, 1, 1, 1)
+--meshes[1] = newtest(1, 1, 1, 1)
+
+for i = 1, 3 do
+	meshes[i] = newtet(1, 1, 1)
+	meshes[i].setpos(vec3.new(
+		0, 0, i
+	))
+	--meshes[i].setrot(mat3.fromquat(quat.rand()))
+end
+
 
 
 function love.draw()
@@ -338,14 +349,7 @@ function love.draw()
 	local rot = mat3.fromeuleryxz(angy, angx, 0)
 	local frusT = getfrusT(w/h, 1, near, far, pos, rot)
 
-
-	--[[for i = 1, #meshes do
-		meshes[i].setrot(
-			unpack(fromangles(t + i/10, 0, 0))
-		)
-	end]]
-
-	meshes[1].setrot(mat3.fromeuleryxz(t, 0, 0))
+	--meshes[1].setrot(mat3.fromeuleryxz(t, 0, 0))
 
 	drawmeshes(frusT, meshes)
 	love.graphics.print(tostring(rot))
