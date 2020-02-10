@@ -1,7 +1,10 @@
 local ffi = require("ffi")
 
+local rand = math.random
 local cos = math.cos
 local sin = math.sin
+local tau = 2*math.pi
+local ln = math.log
 
 ffi.cdef([[
 	typedef struct {
@@ -98,6 +101,50 @@ function mat3.fromquat(q)
 		2*(x*y + z*w)/d,     2*(w*w + y*y)/d - 1, 2*(y*z - x*w)/d,
 		2*(x*z - y*w)/d,     2*(y*z + x*w)/d,     2*(w*w + z*z)/d - 1
 	)
+end
+
+function mat3.random()
+	local l0 = ln(1 - rand())
+	local l1 = ln(1 - rand())
+	local a0 = tau*rand()
+	local a1 = tau*rand()
+	local m0 = (l0/(l0 + l1))^0.5
+	local m1 = (l1/(l0 + l1))^0.5
+	local w = m0*cos(a0)
+	local x = m0*sin(a0)
+	local y = m1*cos(a1)
+	local z = m1*sin(a1)
+	return new(
+		2*(w*w + x*x) - 1, 2*(x*y - z*w),     2*(x*z + y*w),
+		2*(x*y + z*w),     2*(w*w + y*y) - 1, 2*(y*z - x*w),
+		2*(x*z - y*w),     2*(y*z + x*w),     2*(w*w + z*z) - 1
+	)
+end
+
+function mat3.look(a, b)
+	--a and b should be vec3s
+	local ax, ay, az = a:dump()
+	local bx, by, bz = b:dump()
+	local x = ay*bz - az*by
+	local y = az*bx - ax*bz
+	local z = ax*by - ay*bz
+	local d = ax*bx + ay*by + az*bz
+	local m = (d*d + x*x + y*y + z*z)^0.5
+	local w = d + m
+	local q = m*w
+	if q < 1e-12 then--FAIL
+		return new(
+			1, 0, 0,
+			0, 1, 0,
+			0, 0, 1
+		)
+	else
+		return new(
+			(w*w + x*x)/q - 1, (x*y - z*w)/q,     (x*z + y*w)/q,
+			(x*y + z*w)/q,     (w*w + y*y)/q - 1, (y*z - x*w)/q,
+			(x*z - y*w)/q,     (y*z + x*w)/q,     (w*w + z*z)/q - 1
+		)
+	end
 end
 
 function meta.__tostring(a)

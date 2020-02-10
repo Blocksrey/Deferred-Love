@@ -92,19 +92,6 @@ local function computetransforms(vertT, normT, pos, rot, scale)
 end
 
 local function newobject(mesh)
-	--[[
-	local ux, uy, uz = bx - ax, by - ay, bz - az
-	local vx, vy, vz = cx - ax, cy - ay, cz - az
-	local nx = uy*vz - uz*vy
-	local ny = uz*vx - ux*vz
-	local nz = ux*vy - uy*vx
-
-	vertices[1] = {ax, ay, az, nx, ny, nz, r, g, b, a, 0, 0}
-	vertices[2] = {bx, by, bz, nx, ny, nz, r, g, b, a, 1, 0}
-	vertices[3] = {cx, cy, cz, nx, ny, nz, r, g, b, a, 1, 1}
-	]]
-
-
 	local pos = vec3.null
 	local rot = mat3.identity
 	local scale = vec3.new(1, 1, 1)
@@ -141,16 +128,16 @@ local function newobject(mesh)
 		scale = newscale
 	end
 
-	function self.draw()--getdrawdata()
+	function self.getdrawdata()
 		if changed then
 			changed = false
 			computetransforms(vertT, normT, pos, rot, scale)
 		end
-		--return mesh, vertT, normT
+		return mesh, vertT, normT
 		--mesh:setVertex(1, {1 - math.random(), 0 - math.random(), 0 - math.random(), 1, 1, 1, r, g, b, a, 0, 0})
-		geomshader:send("vertT", vertT)
-		geomshader:send("normT", normT)
-		love.graphics.draw(mesh)
+		--geomshader:send("vertT", vertT)
+		--geomshader:send("normT", normT)
+		--love.graphics.draw(mesh)
 	end
 
 	return self
@@ -190,44 +177,11 @@ local function newtet(r, g, b)
 
 	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
 
-	return newobject(mesh)--asdasdasd
+	return newobject(mesh)
 end
 
-local function newtest(r, g, b, a)
-	local vertices = {}
-	local n = 2^14--256/4*4096
-	for i = 0, n - 1 do--[[256/4*4096]]
-		local ox = math.random()*20 - 10
-		local oy = math.random()*20 - 10
-		local oz = math.random()*20 - 10
-
-		vertices[12*i + 1] = {1 + ox, 0 + oy, 0 + oz, 1, 1, 1, r, g, b, a, 0, 0}
-		vertices[12*i + 2] = {0 + ox, 1 + oy, 0 + oz, 1, 1, 1, r, g, b, a, 1, 0}
-		vertices[12*i + 3] = {0 + ox, 0 + oy, 1 + oz, 1, 1, 1, r, g, b, a, 0, 1}
-
-		vertices[12*i + 4] = {0 + ox, 0 + oy, 0 + oz, -1, 0, 0, r, g, b, a, 0, 0}
-		vertices[12*i + 5] = {0 + ox, 0 + oy, 1 + oz, -1, 0, 0, r, g, b, a, 1, 0}
-		vertices[12*i + 6] = {0 + ox, 1 + oy, 0 + oz, -1, 0, 0, r, g, b, a, 0, 1}
-
-		vertices[12*i + 7] = {0 + ox, 0 + oy, 1 + oz, 0, -1, 0, r, g, b, a, 0, 0}
-		vertices[12*i + 8] = {0 + ox, 0 + oy, 0 + oz, 0, -1, 0, r, g, b, a, 1, 0}
-		vertices[12*i + 9] = {1 + ox, 0 + oy, 0 + oz, 0, -1, 0, r, g, b, a, 0, 1}
-
-		vertices[12*i + 10] = {0 + ox, 1 + oy, 0 + oz, 0, 0, -1, r, g, b, a, 0, 0}
-		vertices[12*i + 11] = {1 + ox, 0 + oy, 0 + oz, 0, 0, -1, r, g, b, a, 1, 0}
-		vertices[12*i + 12] = {0 + ox, 0 + oy, 0 + oz, 0, 0, -1, r, g, b, a, 0, 1}
-		--vertices[12*i + 1] = {ax + math.random(), ay + math.random(), az + math.random(), nx, ny, nz, r, g, b, a, 0, 0}
-		--vertices[12*i + 2] = {bx + math.random(), by + math.random(), bz + math.random(), nx, ny, nz, r, g, b, a, 1, 0}
-		--vertices[12*i + 3] = {cx + math.random(), cy + math.random(), cz + math.random(), nx, ny, nz, r, g, b, a, 1, 1}
-	end
-
-	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
-
-	return newobject(mesh)--asdasdasd
-end
-
-love.window.setVSync(false)
-
+--for the sake of my battery life
+--love.window.setVSync(false)
 
 love.graphics.setMeshCullMode("back")
 
@@ -238,7 +192,10 @@ local function drawmeshes(frusT, meshes)
 	love.graphics.clear()
 	geomshader:send("frusT", frusT)
 	for i = 1, #meshes do
-		meshes[i].draw()
+		local mesh, vertT, normT = meshes[i].getdrawdata()
+		geomshader:send("vertT", vertT)
+		geomshader:send("normT", normT)
+		love.graphics.draw(mesh)
 	end
 
 	love.graphics.setDepthMode()
@@ -339,7 +296,7 @@ for i = 1, 256 do
 		math.random()*20 - 10,
 		math.random()*20 - 10
 	))
-	meshes[i].setrot(mat3.fromquat(quat.random()))
+	meshes[i].setrot(mat3.random())
 end
 
 
@@ -352,6 +309,16 @@ function love.draw()
 	local frusT = getfrusT(w/h, 1, near, far, pos, rot)
 
 	--meshes[1].setrot(mat3.fromeuleryxz(t, 0, 0))
+
+
+	--[[for i = 1, #meshes do
+		meshes[i].setscale(vec3.new(
+			math.cos(t) + 1,
+			math.cos(t + 2*pi/3) + 1,
+			math.cos(t + 4*pi/3) + 1
+		))
+		--meshes[i].setrot(mat3.fromquat(quat.random()))
+	end]]
 
 	drawmeshes(frusT, meshes)
 	love.graphics.print(tostring(rot))
