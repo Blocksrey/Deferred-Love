@@ -289,7 +289,7 @@ end
 local meshes = {}
 --meshes[1] = newtest(1, 1, 1, 1)
 
-for i = 1, 256 do
+for i = 1, 2560 do
 	meshes[i] = newtet(1, 1, 1)
 	meshes[i].setpos(vec3.new(
 		math.random()*20 - 10,
