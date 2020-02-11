@@ -180,6 +180,58 @@ local function newtet(r, g, b)
 	return newobject(mesh)
 end
 
+
+--basic definition
+local lightdef = {
+	{"VertexPosition", "float", 3},
+}
+
+local function newlightico()
+	local u = ((5 - 5^0.5)/10)^0.5
+	local v = ((5 + 5^0.5)/10)^0.5
+	local a = { 0,  u,  v}
+	local b = { 0,  u, -v}
+	local c = { 0, -u,  v}
+	local d = { 0, -u, -v}
+	local e = { v,  0,  u}
+	local f = {-v,  0,  u}
+	local g = { v,  0, -u}
+	local h = {-v,  0, -u}
+	local i = { u,  v,  0}
+	local j = { u, -v,  0}
+	local k = {-u,  v,  0}
+	local l = {-u, -v,  0}
+	local vertices = {
+		a,i,k,
+		b,k,i,
+		c,l,j,
+		d,j,l,
+
+		e,a,c,
+		f,c,a,
+		g,d,b,
+		h,b,d,
+
+		i,e,g,
+		j,g,e,
+		k,h,f,
+		l,f,h,
+
+		a,e,i,
+		a,k,f,
+		b,h,k,
+		b,i,g,
+		c,f,l,
+		c,j,e,
+		d,g,j,
+		d,l,h,
+	}
+
+	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
+
+	return newobject(mesh)
+end
+
 --for the sake of my battery life
 --love.window.setVSync(false)
 
@@ -289,12 +341,12 @@ end
 local meshes = {}
 --meshes[1] = newtest(1, 1, 1, 1)
 
-for i = 1, 2560 do
+for i = 1, 1000 do
 	meshes[i] = newtet(1, 1, 1)
 	meshes[i].setpos(vec3.new(
-		math.random()*20 - 10,
-		math.random()*20 - 10,
-		math.random()*20 - 10
+		(math.random() - 1/2)*20,
+		(math.random() - 1/2)*20,
+		(math.random() - 1/2)*20
 	))
 	meshes[i].setrot(mat3.random())
 end
@@ -321,7 +373,7 @@ function love.draw()
 	end]]
 
 	drawmeshes(frusT, meshes)
-	love.graphics.print(tostring(rot))
+	love.graphics.print((love.timer.getTime() - t)*1000)
 	--love.graphics.print(love.timer.getFPS())
 
 	--love.window.setTitle(love.timer.getFPS())

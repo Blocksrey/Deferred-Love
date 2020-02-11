@@ -1,3 +1,5 @@
+//compositing shader
+
 //love_Canvases[layer]
 //VaryingColor		 = vec4 Color
 //MainTex			 = Image Texture
@@ -13,7 +15,7 @@ uniform Image wnorms;
 
 const vec3 mask = vec3(0.0, 1.0, -1.0);
 
-const vec3 atmoscolor = vec3(0.6, 0.85, 0.92);
+const vec3 atmoscolor = vec3(0, 0, 0);//vec3(0.6, 0.85, 0.92);
 const vec3 pointcolor = vec3(0.5, 1.0, 0.5);
 
 const vec3 pointpos = vec3(0.0, 0.0, 0.0);
@@ -21,6 +23,7 @@ const vec3 pointpos = vec3(0.0, 0.0, 0.0);
 float hemibrightness(float d){
 	return 0.5*d + 0.5;
 }
+
 float pointlightbrightness(vec3 l, vec3 n){
 	return max(0.0, dot(l, n))/pow(dot(l, l), 1.5);
 }
