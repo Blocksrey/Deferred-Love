@@ -15,7 +15,7 @@ uniform Image wnorms;
 
 const vec3 mask = vec3(0.0, 1.0, -1.0);
 
-const vec3 atmoscolor = vec3(0, 0, 0);//vec3(0.6, 0.85, 0.92);
+const vec3 atmoscolor = vec3(0.7, 0.8, 0.95);
 const vec3 pointcolor = vec3(0.5, 1.0, 0.5);
 
 const vec3 pointpos = vec3(0.0, 0.0, 0.0);
@@ -40,7 +40,7 @@ vec4 effect(vec4 Color, Image colors, vec2 coords, vec2 PixelPosition){
 		return vec4(atmoscolor, 1.0);
 	}else{
 		vec3 lightatmos = hemibrightness(wnorm.y)*atmoscolor;
-		vec3 lightpoint = 20.0*pointlightbrightness(pointpos - wvert, wnorm)*pointcolor;
+		vec3 lightpoint = 100.0*pointlightbrightness(pointpos - wvert, wnorm)*pointcolor;
 
 		return vec4((lightatmos + lightpoint)*color, 1.0);
 	}

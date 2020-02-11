@@ -5,6 +5,7 @@ local quat = require("quat")
 
 --load in the geometry shader and compositing shader
 local geomshader = love.graphics.newShader("geom_pixel_shader.glsl", "geom_vertex_shader.glsl")
+local lightshader = love.graphics.newShader("light_pixel_shader.glsl", "light_vertex_shader.glsl")
 local compshader = love.graphics.newShader("comp_pixel_shader.glsl")
 
 --make the buffers
@@ -13,21 +14,22 @@ local compbuffer
 local function makebuffers()
 	local w, h = love.graphics.getDimensions()
 
-	local depth = love.graphics.newCanvas(w, h, {format = "depth32f";})
-	local position = love.graphics.newCanvas(w, h, {format = "rgba32f";})
-	local normal = love.graphics.newCanvas(w, h, {format = "rgba32f";})
-	local color = love.graphics.newCanvas(w, h)
+	local depths = love.graphics.newCanvas(w, h, {format = "depth24";})-- readable = true;})
+	local wverts = love.graphics.newCanvas(w, h, {format = "rgba32f";})
+	local wnorms = love.graphics.newCanvas(w, h, {format = "rgba32f";})
+	local colors = love.graphics.newCanvas(w, h)
 
 	geombuffer = {
-		depthstencil = depth;
-		position,
-		normal,
-		color,
+		depthstencil = depths;
+		wverts,
+		wnorms,
+		colors,
 	}
 
 	local composite = love.graphics.newCanvas(w, h)
 
 	compbuffer = {
+		depthstencil = depths;
 		composite,
 	}
 end
@@ -134,10 +136,6 @@ local function newobject(mesh)
 			computetransforms(vertT, normT, pos, rot, scale)
 		end
 		return mesh, vertT, normT
-		--mesh:setVertex(1, {1 - math.random(), 0 - math.random(), 0 - math.random(), 1, 1, 1, r, g, b, a, 0, 0})
-		--geomshader:send("vertT", vertT)
-		--geomshader:send("normT", normT)
-		--love.graphics.draw(mesh)
 	end
 
 	return self
@@ -157,24 +155,27 @@ local function newtet(r, g, b)
 	--b = {-n,  n, -n}
 	--c = { n, -n, -n}
 	--d = {-n, -n,  n}
-	local vertices = {
-		{-n,  n, -n, -n, -n, -n, r, g, b, 1, 0, 0},--b
-		{ n, -n, -n, -n, -n, -n, r, g, b, 1, 0, 0},--c
-		{-n, -n,  n, -n, -n, -n, r, g, b, 1, 0, 0},--d
+	local vertices = {}
+	for i = 1, 1000 do
+		local ox = math.random()*50 - 25
+		local oy = math.random()*50 - 25
+		local oz = math.random()*50 - 25
+		vertices[#vertices + 1] = {ox + -n, oy +  n, oz + -n, -n, -n, -n, r, g, b, 1, 0, 0}--b
+		vertices[#vertices + 1] = {ox +  n, oy + -n, oz + -n, -n, -n, -n, r, g, b, 1, 0, 0}--c
+		vertices[#vertices + 1] = {ox + -n, oy + -n, oz +  n, -n, -n, -n, r, g, b, 1, 0, 0}--d
 
-		{ n,  n,  n,  n, -n,  n, r, g, b, 1, 0, 0},--a
-		{-n, -n,  n,  n, -n,  n, r, g, b, 1, 0, 0},--d
-		{ n, -n, -n,  n, -n,  n, r, g, b, 1, 0, 0},--c
+		vertices[#vertices + 1] = {ox +  n, oy +  n, oz +  n,  n, -n,  n, r, g, b, 1, 0, 0}--a
+		vertices[#vertices + 1] = {ox + -n, oy + -n, oz +  n,  n, -n,  n, r, g, b, 1, 0, 0}--d
+		vertices[#vertices + 1] = {ox +  n, oy + -n, oz + -n,  n, -n,  n, r, g, b, 1, 0, 0}--c
 
-		{-n, -n,  n, -n,  n,  n, r, g, b, 1, 0, 0},--d
-		{ n,  n,  n, -n,  n,  n, r, g, b, 1, 0, 0},--a
-		{-n,  n, -n, -n,  n,  n, r, g, b, 1, 0, 0},--b
+		vertices[#vertices + 1] = {ox + -n, oy + -n, oz +  n, -n,  n,  n, r, g, b, 1, 0, 0}--d
+		vertices[#vertices + 1] = {ox +  n, oy +  n, oz +  n, -n,  n,  n, r, g, b, 1, 0, 0}--a
+		vertices[#vertices + 1] = {ox + -n, oy +  n, oz + -n, -n,  n,  n, r, g, b, 1, 0, 0}--b
 
-		{ n, -n, -n,  n,  n, -n, r, g, b, 1, 0, 0},--c
-		{-n,  n, -n,  n,  n, -n, r, g, b, 1, 0, 0},--b
-		{ n,  n,  n,  n,  n, -n, r, g, b, 1, 0, 0},--a
-	}
-
+		vertices[#vertices + 1] = {ox +  n, oy + -n, oz + -n,  n,  n, -n, r, g, b, 1, 0, 0}--c
+		vertices[#vertices + 1] = {ox + -n, oy +  n, oz + -n,  n,  n, -n, r, g, b, 1, 0, 0}--b
+		vertices[#vertices + 1] = {ox +  n, oy +  n, oz +  n,  n,  n, -n, r, g, b, 1, 0, 0}--a
+	end
 	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
 
 	return newobject(mesh)
@@ -186,7 +187,7 @@ local lightdef = {
 	{"VertexPosition", "float", 3},
 }
 
-local function newlightico()
+local lightmesh do
 	local u = ((5 - 5^0.5)/10)^0.5
 	local v = ((5 + 5^0.5)/10)^0.5
 	local a = { 0,  u,  v}
@@ -202,46 +203,99 @@ local function newlightico()
 	local k = {-u,  v,  0}
 	local l = {-u, -v,  0}
 	local vertices = {
-		a,i,k,
-		b,k,i,
-		c,l,j,
-		d,j,l,
+		a, i, k,
+		b, k, i,
+		c, l, j,
+		d, j, l,
 
-		e,a,c,
-		f,c,a,
-		g,d,b,
-		h,b,d,
+		e, a, c,
+		f, c, a,
+		g, d, b,
+		h, b, d,
 
-		i,e,g,
-		j,g,e,
-		k,h,f,
-		l,f,h,
+		i, e, g,
+		j, g, e,
+		k, h, f,
+		l, f, h,
 
-		a,e,i,
-		a,k,f,
-		b,h,k,
-		b,i,g,
-		c,f,l,
-		c,j,e,
-		d,g,j,
-		d,l,h,
+		a, e, i,
+		a, k, f,
+		b, h, k,
+		b, i, g,
+		c, f, l,
+		c, j, e,
+		d, g, j,
+		d, l, h,
 	}
 
-	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
+	lightmesh = love.graphics.newMesh(lightdef, vertices, "triangles", "static")
+end
 
-	return newobject(mesh)
+local function newlight()
+	local color = vec3.new(1, 1, 1)
+	local pos = vec3.null
+	local changed = true
+
+	local alpha = 1/256
+	local vertT = {
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 1,
+	}
+	local lightcolor = {1, 1, 1}
+
+	local self = {}
+
+	function self.setpos(newpos)
+		changed = true
+		pos = newpos
+	end
+
+	function self.setcolor(newcolor)
+		changed = true
+		color = newcolor
+	end
+
+	local frequencyscale = vec3.new(0.3, 0.59, 0.11)
+	function self.getdrawdata()
+		if changed then
+			changed = false
+			local brightness = frequencyscale:dot(color)
+			local radius = (brightness/alpha)^0.5
+			vertT[1] = radius
+			vertT[4] = pos.x
+			vertT[6] = radius
+			vertT[8] = pos.y
+			vertT[11] = radius
+			vertT[12] = pos.z
+			lightcolor[1] = color.x
+			lightcolor[2] = color.y
+			lightcolor[3] = color.z
+		end
+		return lightmesh, vertT, lightcolor
+	end
+
+	return self
 end
 
 --for the sake of my battery life
 --love.window.setVSync(false)
 
-love.graphics.setMeshCullMode("back")
 
-local function drawmeshes(frusT, meshes)
+local function drawmeshes(frusT, meshes, lights)
+	local w, h = love.graphics.getDimensions()
+	love.graphics.reset()
+
+	--PREPARE FOR GEOMETRY
+	love.graphics.setBlendMode("replace")
+	love.graphics.setMeshCullMode("back")
 	love.graphics.setDepthMode("less", true)
 	love.graphics.setCanvas(geombuffer)
 	love.graphics.setShader(geomshader)
 	love.graphics.clear()
+
+	--RENDER GEOMETRY
 	geomshader:send("frusT", frusT)
 	for i = 1, #meshes do
 		local mesh, vertT, normT = meshes[i].getdrawdata()
@@ -250,20 +304,45 @@ local function drawmeshes(frusT, meshes)
 		love.graphics.draw(mesh)
 	end
 
-	love.graphics.setDepthMode()
+	--PREPARE FOR LIGHTING
+	---[[love.graphics.setCanvas(compbuffer)
+
+	love.graphics.reset()
+	love.graphics.setBlendMode("add")
+	love.graphics.setMeshCullMode("front")
+	love.graphics.setDepthMode("greater", false)
+	love.graphics.setShader(lightshader)
+	love.graphics.setCanvas(compbuffer)
+	love.graphics.clear(0, 0, 0, 1, false, false)
+
+	--RENDER LIGHTING
+	lightshader:send("screendim", {w, h})
+	lightshader:send("frusT", frusT)
+	lightshader:send("wverts", geombuffer[1])
+	lightshader:send("wnorms", geombuffer[2])
+	lightshader:send("colors", geombuffer[3])
+	for i = 1, #lights do
+		local mesh, vertT, color = lights[i].getdrawdata()
+		lightshader:send("vertT", vertT)
+		lightshader:send("lightcolor", color)
+		love.graphics.draw(mesh)
+	end
+	--]]
+	--[[love.graphics.setDepthMode()
 	love.graphics.setShader(compshader)
 	love.graphics.setCanvas(compbuffer)
 	compshader:send("wverts", geombuffer[1])
 	compshader:send("wnorms", geombuffer[2])
-	love.graphics.draw(geombuffer[3])
+	love.graphics.draw(geombuffer[3])]]
 
-	local w, h = love.graphics.getDimensions()
+	love.graphics.reset()--just to make sure
 	--love.graphics.rectangle("fill", 0, 0, w, h)
 	love.graphics.setShader()
 	love.graphics.setCanvas()
 	love.graphics.draw(compbuffer[1], 0, h, 0, 1, -1)--just straight up color
 
-	love.graphics.print(#meshes, 0, 16)
+	--love.graphics.print(#meshes, 0, 16)
+	love.graphics.reset()
 end
 
 
@@ -339,9 +418,10 @@ end
 
 
 local meshes = {}
---meshes[1] = newtest(1, 1, 1, 1)
+local lights = {}
+--meshes[2] = newlightico()
 
-for i = 1, 1000 do
+for i = 1, 1 do
 	meshes[i] = newtet(1, 1, 1)
 	meshes[i].setpos(vec3.new(
 		(math.random() - 1/2)*20,
@@ -349,6 +429,21 @@ for i = 1, 1000 do
 		(math.random() - 1/2)*20
 	))
 	meshes[i].setrot(mat3.random())
+end
+
+for i = 1, 1000 do
+	lights[i] = newlight()
+	lights[i].setpos(vec3.new(
+		(math.random() - 1/2)*20,
+		(math.random() - 1/2)*20,
+		(math.random() - 1/2)*20
+	))
+	lights[i].setcolor(vec3.new(
+		math.random()*0.1,
+		math.random()*0.1,
+		math.random()*0.1
+	))
+	--lights[i].setrot(mat3.random())
 end
 
 
@@ -372,7 +467,7 @@ function love.draw()
 		--meshes[i].setrot(mat3.fromquat(quat.random()))
 	end]]
 
-	drawmeshes(frusT, meshes)
+	drawmeshes(frusT, meshes, lights)
 	love.graphics.print((love.timer.getTime() - t)*1000)
 	--love.graphics.print(love.timer.getFPS())
 
