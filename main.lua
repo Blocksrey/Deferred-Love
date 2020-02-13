@@ -42,7 +42,7 @@ function love.resize()
 	makebuffers()
 end
 
-love.window.setMode(1920, 1080, {resizable = true; fullscreen = true;})
+love.window.setMode(800, 600, {resizable = true; fullscreen = true;})
 
 --this will allow us to compute the frustum transformation matrix once,
 --then send it off to the gpu
