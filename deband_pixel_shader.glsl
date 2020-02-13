@@ -21,7 +21,7 @@ float rand(vec2 co){
 	//Found this on the internet
 	//This will be replaced in the future
 	float z0 = fract(sin(dot(co, vec2(12.9898, 78.233)) + t*0.00231498)*43758.5453);
-	float z1 = fract(sin(dot(co, vec2(12.9898, 78.233)) + t*0.00231498)*43758.5453);
+	float z1 = fract(sin(dot(co, vec2(12.9898, -78.233)) + t*0.00231498)*43758.5453);
 	//this converts the above internet thing into a gaussian distribution
 	//return sqrt(-2*log(1.0 - z0))*cos(6.28318*z1);
 	return wut*(z0 + z1 - 1.0);
