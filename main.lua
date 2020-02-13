@@ -1,7 +1,7 @@
 local mat3 = require("mat3")
 local vec3 = require("vec3")
 local quat = require("quat")
-
+local rand = require("random")
 
 --load in the geometry shader and compositing shader
 local geomshader = love.graphics.newShader("geom_pixel_shader.glsl", "geom_vertex_shader.glsl")
@@ -9,6 +9,7 @@ local lightshader = love.graphics.newShader("light_pixel_shader.glsl", "light_ve
 local compshader = love.graphics.newShader("comp_pixel_shader.glsl")
 local debandshader = love.graphics.newShader("deband_pixel_shader.glsl")
 
+local randomsampler = rand.newsampler(256, 256, rand.gaussian4)
 --make the buffers
 local geombuffer
 local compbuffer
@@ -36,6 +37,12 @@ local function makebuffers()
 end
 
 makebuffers()
+
+function love.resize()
+	makebuffers()
+end
+
+love.window.setMode(1920, 1080, {resizable = true; fullscreen = true;})
 
 --this will allow us to compute the frustum transformation matrix once,
 --then send it off to the gpu
@@ -157,10 +164,10 @@ local function newtet(r, g, b)
 	--c = { n, -n, -n}
 	--d = {-n, -n,  n}
 	local vertices = {}
-	for i = 1, 1000 do
-		local ox = math.random()*50 - 25
-		local oy = math.random()*50 - 25
-		local oz = math.random()*50 - 25
+	for i = 1, 1 do
+		local ox = 0--math.random()*50 - 25
+		local oy = 0--math.random()*50 - 25
+		local oz = 0--math.random()*50 - 25
 		vertices[#vertices + 1] = {ox + -n, oy +  n, oz + -n, -n, -n, -n, r, g, b, 1, 0, 0}--b
 		vertices[#vertices + 1] = {ox +  n, oy + -n, oz + -n, -n, -n, -n, r, g, b, 1, 0, 0}--c
 		vertices[#vertices + 1] = {ox + -n, oy + -n, oz +  n, -n, -n, -n, r, g, b, 1, 0, 0}--d
@@ -189,8 +196,12 @@ local lightdef = {
 }
 
 local lightmesh do
-	local u = ((5 - 5^0.5)/10)^0.5
-	local v = ((5 + 5^0.5)/10)^0.5
+	--outer radius is 1:
+	--local u = ((5 - 5^0.5)/10)^0.5
+	--local v = ((5 + 5^0.5)/10)^0.5
+	--inner radius is 1:
+	local u = (3/2*(7 - 3*5^0.5))^0.5
+	local v = (3/2*(3 - 5^0.5))^0.5
 	local a = { 0,  u,  v}
 	local b = { 0,  u, -v}
 	local c = { 0, -u,  v}
@@ -237,7 +248,7 @@ local function newlight()
 	local pos = vec3.null
 	local changed = true
 
-	local alpha = 1/256
+	local alpha = 1/64--1/256
 	local vertT = {
 		0, 0, 0, 0,
 		0, 0, 0, 0,
@@ -283,9 +294,10 @@ end
 --for the sake of my battery life
 --love.window.setVSync(false)
 
-local wut = 1
+local wut = 0
 local function drawmeshes(frusT, meshes, lights)
 	local w, h = love.graphics.getDimensions()
+	love.graphics.push("all")
 	love.graphics.reset()
 
 	--PREPARE FOR GEOMETRY
@@ -306,8 +318,6 @@ local function drawmeshes(frusT, meshes, lights)
 	end
 
 	--PREPARE FOR LIGHTING
-	---[[love.graphics.setCanvas(compbuffer)
-
 	love.graphics.reset()
 	love.graphics.setBlendMode("add")
 	love.graphics.setMeshCullMode("front")
@@ -339,15 +349,19 @@ local function drawmeshes(frusT, meshes, lights)
 	love.graphics.reset()--just to make sure
 	--love.graphics.rectangle("fill", 0, 0, w, h)
 	love.graphics.setShader(debandshader)
-	debandshader:send("t", os.clock()%1)
+	do
+		local image, size, offset = randomsampler.getdrawdata()
+		debandshader:send("randomimage", image)
+		debandshader:send("randomsize", size)
+		debandshader:send("randomoffset", offset)
+	end
 	debandshader:send("screendim", {w, h})
-	debandshader:send("prenoise", compbuffer[1])
+	debandshader:send("finalcanvas", compbuffer[1])
 	debandshader:send("wut", wut)
 	love.graphics.setCanvas()
 	love.graphics.draw(compbuffer[1])--just straight up color
 
-	--love.graphics.print(#meshes, 0, 16)
-	love.graphics.reset()
+	love.graphics.pop()
 end
 
 
@@ -428,7 +442,7 @@ local meshes = {}
 local lights = {}
 --meshes[2] = newlightico()
 
-for i = 1, 1 do
+for i = 1, 1000 do
 	meshes[i] = newtet(1, 1, 1)
 	meshes[i].setpos(vec3.new(
 		(math.random() - 1/2)*20,
@@ -438,7 +452,7 @@ for i = 1, 1 do
 	meshes[i].setrot(mat3.random())
 end
 
-for i = 1, 100 do
+for i = 1, 10 do
 	lights[i] = newlight()
 	lights[i].setpos(vec3.new(
 		(math.random() - 1/2)*20,
@@ -446,9 +460,9 @@ for i = 1, 100 do
 		(math.random() - 1/2)*20
 	))
 	lights[i].setcolor(vec3.new(
-		math.random()*1,
-		math.random()*1,
-		math.random()*1
+		math.random()*10,
+		math.random()*10,
+		math.random()*10
 	))
 	--lights[i].setrot(mat3.random())
 end

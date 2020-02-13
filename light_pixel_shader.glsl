@@ -22,7 +22,8 @@ uniform vec3 lightcolor;
 float pointlightbrightness(float r, vec3 l, vec3 n){
 	float d = length(l);
 	float c = max(0.0, dot(l, n));
-	return (1 - d/r)*c/(d*d*d);
+	float s = max(0.0, 1 - d/r);
+	return s*c/(d*d*d);
 }
 
 void effect(){
