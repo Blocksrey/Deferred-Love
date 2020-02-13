@@ -7,6 +7,7 @@ local quat = require("quat")
 local geomshader = love.graphics.newShader("geom_pixel_shader.glsl", "geom_vertex_shader.glsl")
 local lightshader = love.graphics.newShader("light_pixel_shader.glsl", "light_vertex_shader.glsl")
 local compshader = love.graphics.newShader("comp_pixel_shader.glsl")
+local debandshader = love.graphics.newShader("deband_pixel_shader.glsl")
 
 --make the buffers
 local geombuffer
@@ -17,7 +18,7 @@ local function makebuffers()
 	local depths = love.graphics.newCanvas(w, h, {format = "depth24";})-- readable = true;})
 	local wverts = love.graphics.newCanvas(w, h, {format = "rgba32f";})
 	local wnorms = love.graphics.newCanvas(w, h, {format = "rgba32f";})
-	local colors = love.graphics.newCanvas(w, h)
+	local colors = love.graphics.newCanvas(w, h, {format = "rgba32f";})
 
 	geombuffer = {
 		depthstencil = depths;
@@ -26,7 +27,7 @@ local function makebuffers()
 		colors,
 	}
 
-	local composite = love.graphics.newCanvas(w, h)
+	local composite = love.graphics.newCanvas(w, h, {format = "rgba32f";})
 
 	compbuffer = {
 		depthstencil = depths;
@@ -282,7 +283,7 @@ end
 --for the sake of my battery life
 --love.window.setVSync(false)
 
-
+local wut = 1
 local function drawmeshes(frusT, meshes, lights)
 	local w, h = love.graphics.getDimensions()
 	love.graphics.reset()
@@ -337,9 +338,13 @@ local function drawmeshes(frusT, meshes, lights)
 
 	love.graphics.reset()--just to make sure
 	--love.graphics.rectangle("fill", 0, 0, w, h)
-	love.graphics.setShader()
+	love.graphics.setShader(debandshader)
+	debandshader:send("t", os.clock()%1)
+	debandshader:send("screendim", {w, h})
+	debandshader:send("prenoise", compbuffer[1])
+	debandshader:send("wut", wut)
 	love.graphics.setCanvas()
-	love.graphics.draw(compbuffer[1], 0, h, 0, 1, -1)--just straight up color
+	love.graphics.draw(compbuffer[1])--just straight up color
 
 	--love.graphics.print(#meshes, 0, 16)
 	love.graphics.reset()
@@ -385,6 +390,8 @@ local speed = 8
 function love.keypressed(k)
 	if k == "escape" then
 		love.event.quit()
+	elseif k == "r" then
+		wut = 1 - wut
 	end
 end
 
@@ -431,7 +438,7 @@ for i = 1, 1 do
 	meshes[i].setrot(mat3.random())
 end
 
-for i = 1, 1000 do
+for i = 1, 100 do
 	lights[i] = newlight()
 	lights[i].setpos(vec3.new(
 		(math.random() - 1/2)*20,
@@ -439,9 +446,9 @@ for i = 1, 1000 do
 		(math.random() - 1/2)*20
 	))
 	lights[i].setcolor(vec3.new(
-		math.random()*0.1,
-		math.random()*0.1,
-		math.random()*0.1
+		math.random()*1,
+		math.random()*1,
+		math.random()*1
 	))
 	--lights[i].setrot(mat3.random())
 end
@@ -468,8 +475,11 @@ function love.draw()
 	end]]
 
 	drawmeshes(frusT, meshes, lights)
-	love.graphics.print((love.timer.getTime() - t)*1000)
+	--love.graphics.print((love.timer.getTime() - t)*1000)
+	love.graphics.print(
+		select(2, lights[1].getdrawdata())[1]
+	)
 	--love.graphics.print(love.timer.getFPS())
 
-	--love.window.setTitle(love.timer.getFPS())
+	love.window.setTitle(love.timer.getFPS())
 end

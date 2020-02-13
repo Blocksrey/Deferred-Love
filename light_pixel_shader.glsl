@@ -19,8 +19,10 @@ uniform vec2 screendim;
 uniform vec3 lightcolor;
 
 
-float pointlightbrightness(vec3 l, vec3 n){
-	return max(0.0, dot(l, n))/pow(dot(l, l), 1.5);
+float pointlightbrightness(float r, vec3 l, vec3 n){
+	float d = length(l);
+	float c = max(0.0, dot(l, n));
+	return (1 - d/r)*c/(d*d*d);
 }
 
 void effect(){
@@ -36,7 +38,7 @@ void effect(){
 	if(drawn == 0.0){
 		love_Canvases[0] = vec4(0.0, 0.0, 0.0, 1.0);
 	}else{
-		float brightness = pointlightbrightness(vertT[3].xyz - wvert, wnorm);
+		float brightness = pointlightbrightness(vertT[0].x, vertT[3].xyz - wvert, wnorm);
 
 		love_Canvases[0] = vec4(brightness*lightcolor*color, 1.0);
 	}
