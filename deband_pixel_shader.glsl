@@ -11,7 +11,6 @@ uniform vec2 randomoffset;
 
 
 uniform float wut;
-uniform int lol;
 
 vec4 rand(vec2 xy){
 	vec2 unitcoord = (xy + randomoffset)/randomsize;

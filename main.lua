@@ -9,7 +9,12 @@ local lightshader = love.graphics.newShader("light_pixel_shader.glsl", "light_ve
 local compshader = love.graphics.newShader("comp_pixel_shader.glsl")
 local debandshader = love.graphics.newShader("deband_pixel_shader.glsl")
 
-local randomsampler = rand.newsampler(256, 256, rand.gaussian4)
+local randomsamplers = {
+	--rand.newsampler(256, 256, rand.uniform4),
+	rand.newsampler(256, 256, rand.gaussian4),
+	rand.newsampler(256, 256, rand.triangular4),
+	rand.newsampler(256, 256, rand.triangular4x2),
+}
 --make the buffers
 local geombuffer
 local compbuffer
@@ -295,6 +300,7 @@ end
 --love.window.setVSync(false)
 
 local wut = 0
+local noiseindex = 1
 local function drawmeshes(frusT, meshes, lights)
 	local w, h = love.graphics.getDimensions()
 	love.graphics.push("all")
@@ -350,7 +356,7 @@ local function drawmeshes(frusT, meshes, lights)
 	--love.graphics.rectangle("fill", 0, 0, w, h)
 	love.graphics.setShader(debandshader)
 	do
-		local image, size, offset = randomsampler.getdrawdata()
+		local image, size, offset = randomsamplers[noiseindex].getdrawdata()
 		debandshader:send("randomimage", image)
 		debandshader:send("randomsize", size)
 		debandshader:send("randomoffset", offset)
@@ -406,6 +412,8 @@ function love.keypressed(k)
 		love.event.quit()
 	elseif k == "r" then
 		wut = 1 - wut
+	elseif k == "t" then
+		noiseindex = noiseindex%#randomsamplers + 1
 	end
 end
 
@@ -491,7 +499,8 @@ function love.draw()
 	drawmeshes(frusT, meshes, lights)
 	--love.graphics.print((love.timer.getTime() - t)*1000)
 	love.graphics.print(
-		select(2, lights[1].getdrawdata())[1]
+		"noise type: "..noiseindex.. "\nenabled: "..tostring(wut)
+		--select(2, lights[1].getdrawdata())[1]
 	)
 	--love.graphics.print(love.timer.getFPS())
 

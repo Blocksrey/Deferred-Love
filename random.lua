@@ -126,6 +126,40 @@ function random.unit4()
 		m1*sin(a1)
 end
 
+function random.triangular()
+	return
+		rand() + rand() - 1
+end
+
+function random.triangular2()
+	return
+		rand() + rand() - 1,
+		rand() + rand() - 1
+end
+
+function random.triangular3()
+	return
+		rand() + rand() - 1,
+		rand() + rand() - 1,
+		rand() + rand() - 1
+end
+
+function random.triangular4x2()
+	return
+		2*(rand() + rand() - 1),
+		2*(rand() + rand() - 1),
+		2*(rand() + rand() - 1),
+		2*(rand() + rand() - 1)
+end
+
+function random.triangular4()
+	return
+		(rand() + rand() - 1),
+		(rand() + rand() - 1),
+		(rand() + rand() - 1),
+		(rand() + rand() - 1)
+end
+
 --just make some random values that the buffers can use
 function random.newsampler(w, h, generator)
 	local self = {}
