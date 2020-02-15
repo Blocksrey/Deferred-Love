@@ -9,12 +9,8 @@ local lightshader = love.graphics.newShader("light_pixel_shader.glsl", "light_ve
 local compshader = love.graphics.newShader("comp_pixel_shader.glsl")
 local debandshader = love.graphics.newShader("deband_pixel_shader.glsl")
 
-local randomsamplers = {
-	--rand.newsampler(256, 256, rand.uniform4),
-	rand.newsampler(256, 256, rand.gaussian4),
-	rand.newsampler(256, 256, rand.triangular4),
-	rand.newsampler(256, 256, rand.triangular4x2),
-}
+local randomsampler = rand.newsampler(256, 256, rand.triangular4)
+
 --make the buffers
 local geombuffer
 local compbuffer
@@ -51,19 +47,19 @@ love.window.setMode(800, 600, {resizable = true; fullscreen = true;})
 
 --this will allow us to compute the frustum transformation matrix once,
 --then send it off to the gpu
---width of the screen plane (screen width / screen height)
+--ratio of the screen plane (screen width / screen height)
 --height of the screen plane (1 = 90 degree fov)
 --near clipping plane distance (positive)
 --far clipping plane distance (positive)
 --pos (vec3 camera position)
 --rot (mat3 camera rotation)
 --returns a 4x4 transformation matrix to be passed to the vertex shader
-local function getfrusT(width, height, near, far, pos, rot)
+local function getfrusT(ratio, height, near, far, pos, rot)
 	local px, py, pz = pos.x, pos.y, pos.z
 	local xx, yx, zx, xy, yy, zy, xz, yz, zz =	rot.xx, rot.yx, rot.zx,
 												rot.xy, rot.yy, rot.zy,
 												rot.xz, rot.yz, rot.zz
-	local xmul = 1/width
+	local xmul = 1/ratio
 	local ymul = 1/height
 	local zmul = (far + near)/(far - near)
 	local zoff = (2*far*near)/(far - near)
@@ -194,6 +190,93 @@ local function newtet(r, g, b)
 	return newobject(mesh)
 end
 
+local function newsphere(n, cr, cg, cb)
+	--outer radius of 1:
+	local u = ((5 - 5^0.5)/10)^0.5
+	local v = ((5 + 5^0.5)/10)^0.5
+	--inner radius of 1:
+	--local u = (3/2*(7 - 3*5^0.5))^0.5
+	--local v = (3/2*(3 - 5^0.5))^0.5
+	local a = vec3.new( 0,  u,  v)
+	local b = vec3.new( 0,  u, -v)
+	local c = vec3.new( 0, -u,  v)
+	local d = vec3.new( 0, -u, -v)
+	local e = vec3.new( v,  0,  u)
+	local f = vec3.new(-v,  0,  u)
+	local g = vec3.new( v,  0, -u)
+	local h = vec3.new(-v,  0, -u)
+	local i = vec3.new( u,  v,  0)
+	local j = vec3.new( u, -v,  0)
+	local k = vec3.new(-u,  v,  0)
+	local l = vec3.new(-u, -v,  0)
+	local tris = {
+		{a, i, k},
+		{b, k, i},
+		{c, l, j},
+		{d, j, l},
+
+		{e, a, c},
+		{f, c, a},
+		{g, d, b},
+		{h, b, d},
+
+		{i, e, g},
+		{j, g, e},
+		{k, h, f},
+		{l, f, h},
+
+		{a, e, i},
+		{a, k, f},
+		{b, h, k},
+		{b, i, g},
+		{c, f, l},
+		{c, j, e},
+		{d, g, j},
+		{d, l, h},
+	}
+
+	local vertices = {}
+
+	local function interp(a, b, c, n, i, j)
+		return i/n*b + j/n*c - (i + j - n)/n*a
+	end
+
+	for l = 1, 20 do
+		for i = 0, n - 1 do
+			for j = 0, n - i - 1 do
+				local a = tris[l][1]
+				local b = tris[l][2]
+				local c = tris[l][3]
+
+				local u = interp(a, b, c, n, i, j):unit()
+				local v = interp(a, b, c, n, i + 1, j):unit()
+				local w = interp(a, b, c, n, i, j + 1):unit()
+				vertices[#vertices + 1] = {u.x, u.y, u.z, u.x, u.y, u.z, cr, cg, cb, 1, 0, 0}
+				vertices[#vertices + 1] = {v.x, v.y, v.z, v.x, v.y, v.z, cr, cg, cb, 1, 0, 0}
+				vertices[#vertices + 1] = {w.x, w.y, w.z, w.x, w.y, w.z, cr, cg, cb, 1, 0, 0}
+			end
+		end
+		for i = 1, n - 1 do
+			for j = 1, n - i do
+				local a = tris[l][1]
+				local b = tris[l][2]
+				local c = tris[l][3]
+
+				local u = interp(a, b, c, n, i, j):unit()
+				local v = interp(a, b, c, n, i - 1, j):unit()
+				local w = interp(a, b, c, n, i, j - 1):unit()
+				vertices[#vertices + 1] = {u.x, u.y, u.z, u.x, u.y, u.z, cr, cg, cb, 1, 0, 0}
+				vertices[#vertices + 1] = {v.x, v.y, v.z, v.x, v.y, v.z, cr, cg, cb, 1, 0, 0}
+				vertices[#vertices + 1] = {w.x, w.y, w.z, w.x, w.y, w.z, cr, cg, cb, 1, 0, 0}
+			end
+		end
+	end
+
+	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
+
+	return newobject(mesh)
+end
+
 
 --basic definition
 local lightdef = {
@@ -201,10 +284,10 @@ local lightdef = {
 }
 
 local lightmesh do
-	--outer radius is 1:
+	--outer radius of 1:
 	--local u = ((5 - 5^0.5)/10)^0.5
 	--local v = ((5 + 5^0.5)/10)^0.5
-	--inner radius is 1:
+	--inner radius of 1:
 	local u = (3/2*(7 - 3*5^0.5))^0.5
 	local v = (3/2*(3 - 5^0.5))^0.5
 	local a = { 0,  u,  v}
@@ -253,7 +336,7 @@ local function newlight()
 	local pos = vec3.null
 	local changed = true
 
-	local alpha = 1/64--1/256
+	local alpha = 1/2--1/256
 	local vertT = {
 		0, 0, 0, 0,
 		0, 0, 0, 0,
@@ -272,6 +355,23 @@ local function newlight()
 	function self.setcolor(newcolor)
 		changed = true
 		color = newcolor
+	end
+
+	function self.setalpha(newalpha)
+		changed = true
+		alpha = newalpha
+	end
+
+	function self.getpos()
+		return pos
+	end
+
+	function self.getcolor()
+		return color
+	end
+
+	function self.getalpha()
+		return alpha
 	end
 
 	local frequencyscale = vec3.new(0.3, 0.59, 0.11)
@@ -299,14 +399,15 @@ end
 --for the sake of my battery life
 --love.window.setVSync(false)
 
-local wut = 0
-local noiseindex = 1
-local function drawmeshes(frusT, meshes, lights)
+local wut = 1
+local function drawmeshes(ratio, height, near, far, pos, rot, meshes, lights)
+	local frusT = getfrusT(ratio, height, near, far, pos, rot)
 	local w, h = love.graphics.getDimensions()
 	love.graphics.push("all")
 	love.graphics.reset()
 
 	--PREPARE FOR GEOMETRY
+	love.graphics.setWireframe(wut == 0)
 	love.graphics.setBlendMode("replace")
 	love.graphics.setMeshCullMode("back")
 	love.graphics.setDepthMode("less", true)
@@ -356,7 +457,7 @@ local function drawmeshes(frusT, meshes, lights)
 	--love.graphics.rectangle("fill", 0, 0, w, h)
 	love.graphics.setShader(debandshader)
 	do
-		local image, size, offset = randomsamplers[noiseindex].getdrawdata()
+		local image, size, offset = randomsampler.getdrawdata()
 		debandshader:send("randomimage", image)
 		debandshader:send("randomsize", size)
 		debandshader:send("randomoffset", offset)
@@ -395,6 +496,8 @@ end
 
 
 
+local meshes = {}
+local lights = {}
 
 
 love.mouse.setRelativeMode(true)
@@ -412,8 +515,18 @@ function love.keypressed(k)
 		love.event.quit()
 	elseif k == "r" then
 		wut = 1 - wut
-	elseif k == "t" then
-		noiseindex = noiseindex%#randomsamplers + 1
+	end
+end
+
+local yoooo = -48
+function love.wheelmoved(x, y)
+	if y > 0 then
+		yoooo = yoooo - 1
+	elseif y < 0 then
+		yoooo = yoooo + 1
+	end
+	for i = 1, #lights do
+		lights[i].setalpha(2^(yoooo/8))
 	end
 end
 
@@ -446,21 +559,19 @@ end
 
 
 
-local meshes = {}
-local lights = {}
 --meshes[2] = newlightico()
 
 for i = 1, 1000 do
-	meshes[i] = newtet(1, 1, 1)
+	meshes[i] = newsphere(8, 1, 1, 1)--1280 tris per sphere
 	meshes[i].setpos(vec3.new(
-		(math.random() - 1/2)*20,
-		(math.random() - 1/2)*20,
-		(math.random() - 1/2)*20
+		(math.random() - 1/2)*30,
+		(math.random() - 1/2)*30,
+		(math.random() - 1/2)*30
 	))
 	meshes[i].setrot(mat3.random())
 end
 
-for i = 1, 10 do
+for i = 1, 3 do
 	lights[i] = newlight()
 	lights[i].setpos(vec3.new(
 		(math.random() - 1/2)*20,
@@ -472,37 +583,45 @@ for i = 1, 10 do
 		math.random()*10,
 		math.random()*10
 	))
-	--lights[i].setrot(mat3.random())
+	lights[i].setalpha(1/64)
 end
 
 
 
+local lastt = love.timer.getTime()
 function love.draw()
 	local w, h = love.graphics.getDimensions()
 
 	local t = love.timer.getTime()--tick()
+	local dt = t - lastt
 	local rot = mat3.fromeuleryxz(angy, angx, 0)
-	local frusT = getfrusT(w/h, 1, near, far, pos, rot)
+
 
 	--meshes[1].setrot(mat3.fromeuleryxz(t, 0, 0))
 
 
 	--[[for i = 1, #meshes do
 		meshes[i].setscale(vec3.new(
-			math.cos(t) + 1,
-			math.cos(t + 2*pi/3) + 1,
-			math.cos(t + 4*pi/3) + 1
+			rand.uniform3()
 		))
 		--meshes[i].setrot(mat3.fromquat(quat.random()))
 	end]]
 
-	drawmeshes(frusT, meshes, lights)
+	for i = 1, #lights do
+		local l = lights[i]
+		local pos = l.getpos()
+		local t = t + i
+		l.setpos(pos*0.9^dt + dt*10*vec3.new(math.cos(t + i), math.cos(1.618*t + i), math.cos(2.618*t + i)))
+	end
+
+	drawmeshes(w/h, 1, near, far, pos, rot, meshes, lights)
 	--love.graphics.print((love.timer.getTime() - t)*1000)
 	love.graphics.print(
-		"noise type: "..noiseindex.. "\nenabled: "..tostring(wut)
+		"debanding enabled: "..wut.."\nlight distance scaler: "..yoooo
 		--select(2, lights[1].getdrawdata())[1]
 	)
 	--love.graphics.print(love.timer.getFPS())
 
 	love.window.setTitle(love.timer.getFPS())
+	lastt = t
 end

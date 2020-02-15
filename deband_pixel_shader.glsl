@@ -17,58 +17,14 @@ vec4 rand(vec2 xy){
 	return Texel(randomimage, mod(unitcoord, 1.0));
 }
 
-vec3 Uncharted2ToneMapping(vec3 color){
-	float A = 0.15;
-	float B = 0.50;
-	float C = 0.10;
-	float D = 0.20;
-	float E = 0.02;
-	float F = 0.30;
-	float W = 11.2;
-	float exposure = 2.;
-	color *= exposure;
-	color = ((color * (A * color + C * B) + D * E) / (color * (A * color + B) + D * F)) - E / F;
-	float white = ((W * (A * W + C * B) + D * E) / (W * (A * W + B) + D * F)) - E / F;
-	color /= white;
-	color = pow(color, vec3(1.0 / 2.2));
-	return color;
-}
-vec3 filmicToneMapping(vec3 color)
-{
-	color = max(vec3(0.), color - vec3(0.004));
-	color = (color * (6.2 * color + .5)) / (color * (6.2 * color + 1.7) + 0.06);
+//Just an equation I found on the internet
+vec3 filmicToneMapping(vec3 color){
+	color = max(vec3(0.0), color - vec3(0.004));
+	color = (color * (6.2 * color + 0.5)) / (color * (6.2 * color + 1.7) + 0.06);
 	return color;
 }
 
-vec3 whatever(vec3 color){
-	return pow(color/(color + vec3(1.0)), vec3(1.0/2.2));
-}
-
-vec3 whatever2(vec3 color){
-	return pow(log(color + vec3(1.0)), vec3(1.0/2.2));
-}
-
-vec3 whatever3(vec3 color){
-	float b = dot(vec3(0.3, 0.59, 0.11), color);
-	return pow(color/(b + 1.0), vec3(1.0/2.2));
-}
-
-vec3 whatever4(vec3 color){
-	return pow(vec3(1.0) - exp(-color), vec3(1.0/2.2));
-}
-
-vec3 whatever5(vec3 color){
-	float b = dot(vec3(0.3, 0.59, 0.11), color);
-	return pow(color/b*(1.0 - exp(-b)), vec3(1.0/2.2));
-}
-
-vec3 white = vec3(1.0, 1.0, 1.0);
-vec3 whatever6(vec3 color){
-	float w = dot(color, white)/dot(white, white);
-	vec3 perp = color - w*white;
-	vec3 newcolor = w/(w + 1.0)*white + 1.0*perp;
-	return pow(newcolor, vec3(1.0/2.2));
-}
+const float accuracy = 1.0/256.0;
 
 void effect(){
 	//compute inverted coordinates
@@ -84,8 +40,9 @@ void effect(){
 	//if (i == 1) mappedcolor = whatever(basecolor);
 	//if (i == 3) mappedcolor = basecolor;
 	vec3 mappedcolor = filmicToneMapping(basecolor);
-	vec3 noise = wut/256.0*rand(love_PixelCoord).rgb;
-	love_Canvases[0] = vec4(mappedcolor + noise, 1.0);//write to screen
+	vec3 noise = wut*accuracy*rand(love_PixelCoord).rgb;
+	vec3 finalcolor = mappedcolor + noise + accuracy/2.0;
+	love_Canvases[0] = vec4(finalcolor - mod(finalcolor, accuracy), 1.0);//write to screen
 }
 
 

@@ -23,7 +23,7 @@ float pointlightbrightness(float r, vec3 l, vec3 n){
 	float d = length(l);
 	float c = max(0.0, dot(l, n));
 	float s = max(0.0, 1 - d/r);
-	return s*c/(d*d*d);
+	return c*s/(d*d*d);
 }
 
 void effect(){
