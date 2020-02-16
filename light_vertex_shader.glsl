@@ -7,7 +7,6 @@
 uniform mat4 frusT;
 uniform mat4 vertT;
 
-
 vec4 position(mat4 I, vec4 vert){
 	return frusT*vertT*vert;
 }

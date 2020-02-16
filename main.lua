@@ -22,6 +22,11 @@ local function makebuffers()
 	local wnorms = love.graphics.newCanvas(w, h, {format = "rgba32f";})
 	local colors = love.graphics.newCanvas(w, h, {format = "rgba32f";})
 
+	depths:setFilter("nearest", "nearest")
+	wverts:setFilter("nearest", "nearest")
+	wnorms:setFilter("nearest", "nearest")
+	colors:setFilter("nearest", "nearest")
+
 	geombuffer = {
 		depthstencil = depths;
 		wverts,
@@ -30,6 +35,8 @@ local function makebuffers()
 	}
 
 	local composite = love.graphics.newCanvas(w, h, {format = "rgba32f";})
+
+	composite:setFilter("nearest", "nearest")
 
 	compbuffer = {
 		depthstencil = depths;
@@ -92,13 +99,13 @@ local function computetransforms(vertT, normT, pos, rot, scale)
 	vertT[12] = pos.z
 	--transpose(det(vertT)*inverse(vertT))
 	normT[1]  = scale.y*scale.z*(rot.yy*rot.zz - rot.yz*rot.zy)
-	normT[2]  = scale.y*scale.z*(rot.xz*rot.zy - rot.xy*rot.zz)
-	normT[3]  = scale.y*scale.z*(rot.xy*rot.yz - rot.xz*rot.yy)
-	normT[5]  = scale.x*scale.z*(rot.yz*rot.zx - rot.yx*rot.zz)
+	normT[2]  = scale.x*scale.z*(rot.xz*rot.zy - rot.xy*rot.zz)
+	normT[3]  = scale.x*scale.y*(rot.xy*rot.yz - rot.xz*rot.yy)
+	normT[5]  = scale.y*scale.z*(rot.yz*rot.zx - rot.yx*rot.zz)
 	normT[6]  = scale.x*scale.z*(rot.xx*rot.zz - rot.xz*rot.zx)
-	normT[7]  = scale.x*scale.z*(rot.xz*rot.yx - rot.xx*rot.yz)
-	normT[9]  = scale.x*scale.y*(rot.yx*rot.zy - rot.yy*rot.zx)
-	normT[10] = scale.x*scale.y*(rot.xy*rot.zx - rot.xx*rot.zy)
+	normT[7]  = scale.x*scale.y*(rot.xz*rot.yx - rot.xx*rot.yz)
+	normT[9]  = scale.y*scale.z*(rot.yx*rot.zy - rot.yy*rot.zx)
+	normT[10] = scale.x*scale.z*(rot.xy*rot.zx - rot.xx*rot.zy)
 	normT[11] = scale.x*scale.y*(rot.xx*rot.yy - rot.xy*rot.yx)
 end
 
@@ -164,27 +171,73 @@ local function newtet(r, g, b)
 	--b = {-n,  n, -n}
 	--c = { n, -n, -n}
 	--d = {-n, -n,  n}
-	local vertices = {}
-	for i = 1, 1 do
-		local ox = 0--math.random()*50 - 25
-		local oy = 0--math.random()*50 - 25
-		local oz = 0--math.random()*50 - 25
-		vertices[#vertices + 1] = {ox + -n, oy +  n, oz + -n, -n, -n, -n, r, g, b, 1, 0, 0}--b
-		vertices[#vertices + 1] = {ox +  n, oy + -n, oz + -n, -n, -n, -n, r, g, b, 1, 0, 0}--c
-		vertices[#vertices + 1] = {ox + -n, oy + -n, oz +  n, -n, -n, -n, r, g, b, 1, 0, 0}--d
+	local vertices = {
+		{-n,  n, -n, -n, -n, -n, r, g, b, 1, 0, 0},--b
+		{ n, -n, -n, -n, -n, -n, r, g, b, 1, 0, 0},--c
+		{-n, -n,  n, -n, -n, -n, r, g, b, 1, 0, 0},--d
 
-		vertices[#vertices + 1] = {ox +  n, oy +  n, oz +  n,  n, -n,  n, r, g, b, 1, 0, 0}--a
-		vertices[#vertices + 1] = {ox + -n, oy + -n, oz +  n,  n, -n,  n, r, g, b, 1, 0, 0}--d
-		vertices[#vertices + 1] = {ox +  n, oy + -n, oz + -n,  n, -n,  n, r, g, b, 1, 0, 0}--c
+		{ n,  n,  n,  n, -n,  n, r, g, b, 1, 0, 0},--a
+		{-n, -n,  n,  n, -n,  n, r, g, b, 1, 0, 0},--d
+		{ n, -n, -n,  n, -n,  n, r, g, b, 1, 0, 0},--c
 
-		vertices[#vertices + 1] = {ox + -n, oy + -n, oz +  n, -n,  n,  n, r, g, b, 1, 0, 0}--d
-		vertices[#vertices + 1] = {ox +  n, oy +  n, oz +  n, -n,  n,  n, r, g, b, 1, 0, 0}--a
-		vertices[#vertices + 1] = {ox + -n, oy +  n, oz + -n, -n,  n,  n, r, g, b, 1, 0, 0}--b
+		{-n, -n,  n, -n,  n,  n, r, g, b, 1, 0, 0},--d
+		{ n,  n,  n, -n,  n,  n, r, g, b, 1, 0, 0},--a
+		{-n,  n, -n, -n,  n,  n, r, g, b, 1, 0, 0},--b
 
-		vertices[#vertices + 1] = {ox +  n, oy + -n, oz + -n,  n,  n, -n, r, g, b, 1, 0, 0}--c
-		vertices[#vertices + 1] = {ox + -n, oy +  n, oz + -n,  n,  n, -n, r, g, b, 1, 0, 0}--b
-		vertices[#vertices + 1] = {ox +  n, oy +  n, oz +  n,  n,  n, -n, r, g, b, 1, 0, 0}--a
-	end
+		{ n, -n, -n,  n,  n, -n, r, g, b, 1, 0, 0},--c
+		{-n,  n, -n,  n,  n, -n, r, g, b, 1, 0, 0},--b
+		{ n,  n,  n,  n,  n, -n, r, g, b, 1, 0, 0},--a
+	}
+	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
+
+	return newobject(mesh)
+end
+
+local function newbox(r, g, b)
+	local vertices = {
+		{ 1,  1,  1,  1,  0,  0, r, g, b, 1, 0, 0},
+		{ 1, -1,  1,  1,  0,  0, r, g, b, 1, 0, 0},
+		{ 1,  1, -1,  1,  0,  0, r, g, b, 1, 0, 0},
+		{ 1,  1,  1,  0,  1,  0, r, g, b, 1, 0, 0},
+		{ 1,  1, -1,  0,  1,  0, r, g, b, 1, 0, 0},
+		{-1,  1,  1,  0,  1,  0, r, g, b, 1, 0, 0},
+		{ 1,  1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
+		{-1,  1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
+		{ 1, -1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
+
+
+		{-1,  1, -1, -1,  0,  0, r, g, b, 1, 0, 0},
+		{-1, -1, -1, -1,  0,  0, r, g, b, 1, 0, 0},
+		{-1,  1,  1, -1,  0,  0, r, g, b, 1, 0, 0},
+		{-1,  1, -1,  0,  1,  0, r, g, b, 1, 0, 0},
+		{-1,  1,  1,  0,  1,  0, r, g, b, 1, 0, 0},
+		{ 1,  1, -1,  0,  1,  0, r, g, b, 1, 0, 0},
+		{-1,  1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
+		{ 1,  1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
+		{-1, -1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
+
+
+		{ 1, -1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
+		{-1, -1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
+		{ 1,  1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
+		{ 1, -1, -1,  1,  0,  0, r, g, b, 1, 0, 0},
+		{ 1,  1, -1,  1,  0,  0, r, g, b, 1, 0, 0},
+		{ 1, -1,  1,  1,  0,  0, r, g, b, 1, 0, 0},
+		{ 1, -1, -1,  0, -1,  0, r, g, b, 1, 0, 0},
+		{ 1, -1,  1,  0, -1,  0, r, g, b, 1, 0, 0},
+		{-1, -1, -1,  0, -1,  0, r, g, b, 1, 0, 0},
+
+
+		{-1, -1,  1,  0, -1,  0, r, g, b, 1, 0, 0},
+		{-1, -1, -1,  0, -1,  0, r, g, b, 1, 0, 0},
+		{ 1, -1,  1,  0, -1,  0, r, g, b, 1, 0, 0},
+		{-1, -1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
+		{ 1, -1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
+		{-1,  1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
+		{-1, -1,  1, -1,  0,  0, r, g, b, 1, 0, 0},
+		{-1,  1,  1, -1,  0,  0, r, g, b, 1, 0, 0},
+		{-1, -1, -1, -1,  0,  0, r, g, b, 1, 0, 0},
+	}
 	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
 
 	return newobject(mesh)
@@ -400,6 +453,7 @@ end
 --love.window.setVSync(false)
 
 local wut = 1
+local shadow = 1
 local function drawmeshes(ratio, height, near, far, pos, rot, meshes, lights)
 	local frusT = getfrusT(ratio, height, near, far, pos, rot)
 	local w, h = love.graphics.getDimensions()
@@ -439,6 +493,7 @@ local function drawmeshes(ratio, height, near, far, pos, rot, meshes, lights)
 	lightshader:send("wverts", geombuffer[1])
 	lightshader:send("wnorms", geombuffer[2])
 	lightshader:send("colors", geombuffer[3])
+	--lightshader:send("shadow", shadow)
 	for i = 1, #lights do
 		local mesh, vertT, color = lights[i].getdrawdata()
 		lightshader:send("vertT", vertT)
@@ -515,6 +570,8 @@ function love.keypressed(k)
 		love.event.quit()
 	elseif k == "r" then
 		wut = 1 - wut
+	elseif k == "t" then
+		shadow = 1 - shadow
 	end
 end
 
@@ -561,23 +618,78 @@ end
 
 --meshes[2] = newlightico()
 
-for i = 1, 1000 do
+--[[
+meshes[1] = newsphere(8, 1, 1, 1)
+meshes[2] = newsphere(8, 1, 1, 1)
+
+meshes[1].setscale(vec3.new(0.25, 0.25, 0.25))
+meshes[1].setpos(vec3.new(0, 0, 0))
+meshes[2].setpos(vec3.new(2, 0, 0))
+
+lights[1] = newlight()
+lights[1].setpos(vec3.new(-3, 0, 0))
+lights[1].setcolor(vec3.new(10, 10, 10))
+--]]
+
+--[[
+for i = 1, 50 do
 	meshes[i] = newsphere(8, 1, 1, 1)--1280 tris per sphere
 	meshes[i].setpos(vec3.new(
-		(math.random() - 1/2)*30,
-		(math.random() - 1/2)*30,
-		(math.random() - 1/2)*30
+		(math.random() - 1/2)*10,
+		(math.random() - 1/2)*10,
+		(math.random() - 1/2)*10
+	))
+	meshes[i].setrot(mat3.random())
+end
+for i = 51, 100 do
+	meshes[i] = newtet(1, 1, 1)
+	meshes[i].setpos(vec3.new(
+		(math.random() - 1/2)*10,
+		(math.random() - 1/2)*10,
+		(math.random() - 1/2)*10
 	))
 	meshes[i].setrot(mat3.random())
 end
 
-for i = 1, 3 do
+for i = 1, 10 do
 	lights[i] = newlight()
 	lights[i].setpos(vec3.new(
-		(math.random() - 1/2)*20,
-		(math.random() - 1/2)*20,
-		(math.random() - 1/2)*20
+		(math.random() - 1/2)*100,
+		25--(math.random() - 1/2)*10,
+		(math.random() - 1/2)*100
 	))
+	lights[i].setcolor(vec3.new(
+		math.random()*100,
+		math.random()*100,
+		math.random()*100
+	))
+	lights[i].setalpha(1/64)
+end
+
+meshes[1] = newbox(1, 1, 1)
+meshes[1].setpos(vec3.new(0, -10, 0))
+meshes[1].setscale(vec3.new(40, 1, 40))
+
+--]]
+
+local testmodel = require("test model")
+for i = 1, 10 do
+	local color = testmodel[i][4]
+	meshes[i] = newbox(color.x, color.y, color.z)
+	meshes[i].setpos(testmodel[i][1])
+	meshes[i].setrot(testmodel[i][2])
+	meshes[i].setscale(testmodel[i][3]/2)
+end
+
+--local randomoffset = {}
+for i = 1, 100 do
+	lights[i] = newlight()
+	lights[i].setpos(vec3.new(
+		(math.random() - 1/2)*100,
+		(math.random())*25,
+		(math.random() - 1/2)*100
+	))
+	--randomoffset[i] = 5*vec3.new(random.unit3())
 	lights[i].setcolor(vec3.new(
 		math.random()*10,
 		math.random()*10,
@@ -607,11 +719,29 @@ function love.draw()
 		--meshes[i].setrot(mat3.fromquat(quat.random()))
 	end]]
 
+	--[=[
 	for i = 1, #lights do
 		local l = lights[i]
 		local pos = l.getpos()
-		local t = t + i
-		l.setpos(pos*0.9^dt + dt*10*vec3.new(math.cos(t + i), math.cos(1.618*t + i), math.cos(2.618*t + i)))
+		--local t = (t + i)/10
+		--[[if 20 < pos.x then
+			pos = pos - vec3.new(40, 0, 0)
+			pos.y = math.random()*30 - 15
+			pos.z = math.random()*30 - 15
+		end
+		pos = pos + vec3.new(100*dt, 0, 0)
+		l.setpos(pos)]]
+		l.setpos(15*vec3.new(math.cos(t + i), 1, math.sin(t + i)))
+		--l.setpos(15*vec3.new(math.cos(t + i), math.cos(1.618*t + i), math.cos(2.618*t + i)))
+	end
+	--]=]
+
+	for i = 1, 1 do
+		local tpos = pos + rot*vec3.new(0, 0, 10)
+		local lpos = lights[i].getpos()
+		local dpos = lpos - tpos
+		lights[i].setpos(tpos + 0.01^dt*dpos)
+		lights[i].setcolor(vec3.new(5, 5, 5))
 	end
 
 	drawmeshes(w/h, 1, near, far, pos, rot, meshes, lights)
