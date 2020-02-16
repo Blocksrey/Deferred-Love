@@ -493,7 +493,7 @@ local function drawmeshes(ratio, height, near, far, pos, rot, meshes, lights)
 	lightshader:send("wverts", geombuffer[1])
 	lightshader:send("wnorms", geombuffer[2])
 	lightshader:send("colors", geombuffer[3])
-	--lightshader:send("shadow", shadow)
+	lightshader:send("shadow", shadow)
 	for i = 1, #lights do
 		local mesh, vertT, color = lights[i].getdrawdata()
 		lightshader:send("vertT", vertT)
@@ -673,7 +673,7 @@ meshes[1].setscale(vec3.new(40, 1, 40))
 --]]
 
 local testmodel = require("test model")
-for i = 1, 10 do
+for i = 1, #testmodel do
 	local color = testmodel[i][4]
 	meshes[i] = newbox(color.x, color.y, color.z)
 	meshes[i].setpos(testmodel[i][1])
@@ -685,9 +685,9 @@ end
 for i = 1, 100 do
 	lights[i] = newlight()
 	lights[i].setpos(vec3.new(
-		(math.random() - 1/2)*100,
+		(math.random() - 1/2)*70,
 		(math.random())*25,
-		(math.random() - 1/2)*100
+		(math.random() - 1/2)*70
 	))
 	--randomoffset[i] = 5*vec3.new(random.unit3())
 	lights[i].setcolor(vec3.new(
@@ -747,7 +747,9 @@ function love.draw()
 	drawmeshes(w/h, 1, near, far, pos, rot, meshes, lights)
 	--love.graphics.print((love.timer.getTime() - t)*1000)
 	love.graphics.print(
-		"debanding enabled: "..wut.."\nlight distance scaler: "..yoooo
+		"debanding enabled: "..wut..
+		"\nssshadows enabled: "..shadow..
+		"\nlight distance scaler: "..yoooo
 		--select(2, lights[1].getdrawdata())[1]
 	)
 	--love.graphics.print(love.timer.getFPS())
