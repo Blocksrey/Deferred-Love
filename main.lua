@@ -2,6 +2,8 @@ local mat3 = require("mat3")
 local vec3 = require("vec3")
 local quat = require("quat")
 local rand = require("random")
+local light = require("light")
+local object = require("object")
 
 --load in the geometry shader and compositing shader
 local geomshader = love.graphics.newShader("geom_pixel_shader.glsl", "geom_vertex_shader.glsl")
@@ -50,7 +52,7 @@ function love.resize()
 	makebuffers()
 end
 
-love.window.setMode(800, 600, {resizable = true; fullscreen = true;})
+love.window.setMode(800, 600, {resizable = true; fullscreen = false;})
 
 --this will allow us to compute the frustum transformation matrix once,
 --then send it off to the gpu
@@ -82,378 +84,16 @@ local function getfrusT(ratio, height, near, far, pos, rot)
 end
 
 
---returns a 4x4 transformation matrix to be passed to the vertex shader
-local function computetransforms(vertT, normT, pos, rot, scale)
-	--mat3(scale)*rot
-	vertT[1]  = scale.x*rot.xx
-	vertT[2]  = scale.y*rot.yx
-	vertT[3]  = scale.z*rot.zx
-	vertT[4]  = pos.x
-	vertT[5]  = scale.x*rot.xy
-	vertT[6]  = scale.y*rot.yy
-	vertT[7]  = scale.z*rot.zy
-	vertT[8]  = pos.y
-	vertT[9]  = scale.x*rot.xz
-	vertT[10] = scale.y*rot.yz
-	vertT[11] = scale.z*rot.zz
-	vertT[12] = pos.z
-	--transpose(det(vertT)*inverse(vertT))
-	normT[1]  = scale.y*scale.z*(rot.yy*rot.zz - rot.yz*rot.zy)
-	normT[2]  = scale.x*scale.z*(rot.xz*rot.zy - rot.xy*rot.zz)
-	normT[3]  = scale.x*scale.y*(rot.xy*rot.yz - rot.xz*rot.yy)
-	normT[5]  = scale.y*scale.z*(rot.yz*rot.zx - rot.yx*rot.zz)
-	normT[6]  = scale.x*scale.z*(rot.xx*rot.zz - rot.xz*rot.zx)
-	normT[7]  = scale.x*scale.y*(rot.xz*rot.yx - rot.xx*rot.yz)
-	normT[9]  = scale.y*scale.z*(rot.yx*rot.zy - rot.yy*rot.zx)
-	normT[10] = scale.x*scale.z*(rot.xy*rot.zx - rot.xx*rot.zy)
-	normT[11] = scale.x*scale.y*(rot.xx*rot.yy - rot.xy*rot.yx)
-end
-
-local function newobject(mesh)
-	local pos = vec3.null
-	local rot = mat3.identity
-	local scale = vec3.new(1, 1, 1)
-
-	local changed = false
-
-	local vertT = {
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1,
-	}
-	local normT = {
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1,
-	}
-
-	local self = {}
-
-	function self.setpos(newpos)
-		changed = true
-		pos = newpos
-	end
-
-	function self.setrot(newrot)
-		changed = true
-		rot = newrot
-	end
-
-	function self.setscale(newscale)
-		changed = true
-		scale = newscale
-	end
-
-	function self.getdrawdata()
-		if changed then
-			changed = false
-			computetransforms(vertT, normT, pos, rot, scale)
-		end
-		return mesh, vertT, normT
-	end
-
-	return self
-end
-
---basic definition
-local vertdef = {
-	{"VertexPosition", "float", 3},
-	{"norm", "float", 3},
-	{"VertexColor", "byte", 4},
-	{"VertexTexCoord", "float", 2},
-}
-
-local function newtet(r, g, b)
-	local n = 1/3^(1/2)
-	--a = { n,  n,  n}
-	--b = {-n,  n, -n}
-	--c = { n, -n, -n}
-	--d = {-n, -n,  n}
-	local vertices = {
-		{-n,  n, -n, -n, -n, -n, r, g, b, 1, 0, 0},--b
-		{ n, -n, -n, -n, -n, -n, r, g, b, 1, 0, 0},--c
-		{-n, -n,  n, -n, -n, -n, r, g, b, 1, 0, 0},--d
-
-		{ n,  n,  n,  n, -n,  n, r, g, b, 1, 0, 0},--a
-		{-n, -n,  n,  n, -n,  n, r, g, b, 1, 0, 0},--d
-		{ n, -n, -n,  n, -n,  n, r, g, b, 1, 0, 0},--c
-
-		{-n, -n,  n, -n,  n,  n, r, g, b, 1, 0, 0},--d
-		{ n,  n,  n, -n,  n,  n, r, g, b, 1, 0, 0},--a
-		{-n,  n, -n, -n,  n,  n, r, g, b, 1, 0, 0},--b
-
-		{ n, -n, -n,  n,  n, -n, r, g, b, 1, 0, 0},--c
-		{-n,  n, -n,  n,  n, -n, r, g, b, 1, 0, 0},--b
-		{ n,  n,  n,  n,  n, -n, r, g, b, 1, 0, 0},--a
-	}
-	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
-
-	return newobject(mesh)
-end
-
-local function newbox(r, g, b)
-	local vertices = {
-		{ 1,  1,  1,  1,  0,  0, r, g, b, 1, 0, 0},
-		{ 1, -1,  1,  1,  0,  0, r, g, b, 1, 0, 0},
-		{ 1,  1, -1,  1,  0,  0, r, g, b, 1, 0, 0},
-		{ 1,  1,  1,  0,  1,  0, r, g, b, 1, 0, 0},
-		{ 1,  1, -1,  0,  1,  0, r, g, b, 1, 0, 0},
-		{-1,  1,  1,  0,  1,  0, r, g, b, 1, 0, 0},
-		{ 1,  1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
-		{-1,  1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
-		{ 1, -1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
-
-
-		{-1,  1, -1, -1,  0,  0, r, g, b, 1, 0, 0},
-		{-1, -1, -1, -1,  0,  0, r, g, b, 1, 0, 0},
-		{-1,  1,  1, -1,  0,  0, r, g, b, 1, 0, 0},
-		{-1,  1, -1,  0,  1,  0, r, g, b, 1, 0, 0},
-		{-1,  1,  1,  0,  1,  0, r, g, b, 1, 0, 0},
-		{ 1,  1, -1,  0,  1,  0, r, g, b, 1, 0, 0},
-		{-1,  1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
-		{ 1,  1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
-		{-1, -1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
-
-
-		{ 1, -1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
-		{-1, -1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
-		{ 1,  1, -1,  0,  0, -1, r, g, b, 1, 0, 0},
-		{ 1, -1, -1,  1,  0,  0, r, g, b, 1, 0, 0},
-		{ 1,  1, -1,  1,  0,  0, r, g, b, 1, 0, 0},
-		{ 1, -1,  1,  1,  0,  0, r, g, b, 1, 0, 0},
-		{ 1, -1, -1,  0, -1,  0, r, g, b, 1, 0, 0},
-		{ 1, -1,  1,  0, -1,  0, r, g, b, 1, 0, 0},
-		{-1, -1, -1,  0, -1,  0, r, g, b, 1, 0, 0},
-
-
-		{-1, -1,  1,  0, -1,  0, r, g, b, 1, 0, 0},
-		{-1, -1, -1,  0, -1,  0, r, g, b, 1, 0, 0},
-		{ 1, -1,  1,  0, -1,  0, r, g, b, 1, 0, 0},
-		{-1, -1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
-		{ 1, -1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
-		{-1,  1,  1,  0,  0,  1, r, g, b, 1, 0, 0},
-		{-1, -1,  1, -1,  0,  0, r, g, b, 1, 0, 0},
-		{-1,  1,  1, -1,  0,  0, r, g, b, 1, 0, 0},
-		{-1, -1, -1, -1,  0,  0, r, g, b, 1, 0, 0},
-	}
-	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
-
-	return newobject(mesh)
-end
-
-local function newsphere(n, cr, cg, cb)
-	--outer radius of 1:
-	local u = ((5 - 5^0.5)/10)^0.5
-	local v = ((5 + 5^0.5)/10)^0.5
-	--inner radius of 1:
-	--local u = (3/2*(7 - 3*5^0.5))^0.5
-	--local v = (3/2*(3 - 5^0.5))^0.5
-	local a = vec3.new( 0,  u,  v)
-	local b = vec3.new( 0,  u, -v)
-	local c = vec3.new( 0, -u,  v)
-	local d = vec3.new( 0, -u, -v)
-	local e = vec3.new( v,  0,  u)
-	local f = vec3.new(-v,  0,  u)
-	local g = vec3.new( v,  0, -u)
-	local h = vec3.new(-v,  0, -u)
-	local i = vec3.new( u,  v,  0)
-	local j = vec3.new( u, -v,  0)
-	local k = vec3.new(-u,  v,  0)
-	local l = vec3.new(-u, -v,  0)
-	local tris = {
-		{a, i, k},
-		{b, k, i},
-		{c, l, j},
-		{d, j, l},
-
-		{e, a, c},
-		{f, c, a},
-		{g, d, b},
-		{h, b, d},
-
-		{i, e, g},
-		{j, g, e},
-		{k, h, f},
-		{l, f, h},
-
-		{a, e, i},
-		{a, k, f},
-		{b, h, k},
-		{b, i, g},
-		{c, f, l},
-		{c, j, e},
-		{d, g, j},
-		{d, l, h},
-	}
-
-	local vertices = {}
-
-	local function interp(a, b, c, n, i, j)
-		return i/n*b + j/n*c - (i + j - n)/n*a
-	end
-
-	for l = 1, 20 do
-		for i = 0, n - 1 do
-			for j = 0, n - i - 1 do
-				local a = tris[l][1]
-				local b = tris[l][2]
-				local c = tris[l][3]
-
-				local u = interp(a, b, c, n, i, j):unit()
-				local v = interp(a, b, c, n, i + 1, j):unit()
-				local w = interp(a, b, c, n, i, j + 1):unit()
-				vertices[#vertices + 1] = {u.x, u.y, u.z, u.x, u.y, u.z, cr, cg, cb, 1, 0, 0}
-				vertices[#vertices + 1] = {v.x, v.y, v.z, v.x, v.y, v.z, cr, cg, cb, 1, 0, 0}
-				vertices[#vertices + 1] = {w.x, w.y, w.z, w.x, w.y, w.z, cr, cg, cb, 1, 0, 0}
-			end
-		end
-		for i = 1, n - 1 do
-			for j = 1, n - i do
-				local a = tris[l][1]
-				local b = tris[l][2]
-				local c = tris[l][3]
-
-				local u = interp(a, b, c, n, i, j):unit()
-				local v = interp(a, b, c, n, i - 1, j):unit()
-				local w = interp(a, b, c, n, i, j - 1):unit()
-				vertices[#vertices + 1] = {u.x, u.y, u.z, u.x, u.y, u.z, cr, cg, cb, 1, 0, 0}
-				vertices[#vertices + 1] = {v.x, v.y, v.z, v.x, v.y, v.z, cr, cg, cb, 1, 0, 0}
-				vertices[#vertices + 1] = {w.x, w.y, w.z, w.x, w.y, w.z, cr, cg, cb, 1, 0, 0}
-			end
-		end
-	end
-
-	local mesh = love.graphics.newMesh(vertdef, vertices, "triangles", "static")
-
-	return newobject(mesh)
-end
-
-
---basic definition
-local lightdef = {
-	{"VertexPosition", "float", 3},
-}
-
-local lightmesh do
-	--outer radius of 1:
-	--local u = ((5 - 5^0.5)/10)^0.5
-	--local v = ((5 + 5^0.5)/10)^0.5
-	--inner radius of 1:
-	local u = (3/2*(7 - 3*5^0.5))^0.5
-	local v = (3/2*(3 - 5^0.5))^0.5
-	local a = { 0,  u,  v}
-	local b = { 0,  u, -v}
-	local c = { 0, -u,  v}
-	local d = { 0, -u, -v}
-	local e = { v,  0,  u}
-	local f = {-v,  0,  u}
-	local g = { v,  0, -u}
-	local h = {-v,  0, -u}
-	local i = { u,  v,  0}
-	local j = { u, -v,  0}
-	local k = {-u,  v,  0}
-	local l = {-u, -v,  0}
-	local vertices = {
-		a, i, k,
-		b, k, i,
-		c, l, j,
-		d, j, l,
-
-		e, a, c,
-		f, c, a,
-		g, d, b,
-		h, b, d,
-
-		i, e, g,
-		j, g, e,
-		k, h, f,
-		l, f, h,
-
-		a, e, i,
-		a, k, f,
-		b, h, k,
-		b, i, g,
-		c, f, l,
-		c, j, e,
-		d, g, j,
-		d, l, h,
-	}
-
-	lightmesh = love.graphics.newMesh(lightdef, vertices, "triangles", "static")
-end
-
-local function newlight()
-	local color = vec3.new(1, 1, 1)
-	local pos = vec3.null
-	local changed = true
-
-	local alpha = 1/2--1/256
-	local vertT = {
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 1,
-	}
-	local lightcolor = {1, 1, 1}
-
-	local self = {}
-
-	function self.setpos(newpos)
-		changed = true
-		pos = newpos
-	end
-
-	function self.setcolor(newcolor)
-		changed = true
-		color = newcolor
-	end
-
-	function self.setalpha(newalpha)
-		changed = true
-		alpha = newalpha
-	end
-
-	function self.getpos()
-		return pos
-	end
-
-	function self.getcolor()
-		return color
-	end
-
-	function self.getalpha()
-		return alpha
-	end
-
-	local frequencyscale = vec3.new(0.3, 0.59, 0.11)
-	function self.getdrawdata()
-		if changed then
-			changed = false
-			local brightness = frequencyscale:dot(color)
-			local radius = (brightness/alpha)^0.5
-			vertT[1] = radius
-			vertT[4] = pos.x
-			vertT[6] = radius
-			vertT[8] = pos.y
-			vertT[11] = radius
-			vertT[12] = pos.z
-			lightcolor[1] = color.x
-			lightcolor[2] = color.y
-			lightcolor[3] = color.z
-		end
-		return lightmesh, vertT, lightcolor
-	end
-
-	return self
-end
+local newtet = object.newtetrahedron
+local newbox = object.newbox
+local newsphere = object.newsphere
+local newlight = light.new
 
 --for the sake of my battery life
 --love.window.setVSync(false)
 
 local wut = 1
-local shadow = 1
+local shadow = 0
 local function drawmeshes(ratio, height, near, far, pos, rot, meshes, lights)
 	local frusT = getfrusT(ratio, height, near, far, pos, rot)
 	local w, h = love.graphics.getDimensions()
@@ -554,9 +194,6 @@ end
 local meshes = {}
 local lights = {}
 
-
-love.mouse.setRelativeMode(true)
-
 local near = 1/10
 local far = 5000
 local pos = vec3.new(0, 0, -5)
@@ -601,6 +238,16 @@ function love.mousemoved(px, py, dx, dy)
 end
 
 function love.update(dt)
+	love.mouse.setRelativeMode(not love.keyboard.isDown("tab"))
+
+	local mul = speed
+	if love.keyboard.isDown("lshift") then
+		mul = 8*mul
+	end
+	if love.keyboard.isDown("lctrl") then
+		mul = mul/8
+	end
+
 	local rot = mat3.fromeuleryxz(angy, angx, 0)
 
 	local keyd = love.keyboard.isDown("d") and 1 or 0
@@ -611,7 +258,7 @@ function love.update(dt)
 	local keys = love.keyboard.isDown("s") and 1 or 0
 
 	local vel = rot*vec3.new(keyd - keya, keye - keyq, keyw - keys):unit()
-	pos = pos + dt*speed*vel
+	pos = pos + dt*mul*vel
 end
 
 
@@ -675,7 +322,7 @@ meshes[1].setscale(vec3.new(40, 1, 40))
 local testmodel = require("test model")
 for i = 1, #testmodel do
 	local color = testmodel[i][4]
-	meshes[i] = newbox(color.x, color.y, color.z)
+	meshes[i] = newbox(16, color.x, color.y, color.z)
 	meshes[i].setpos(testmodel[i][1])
 	meshes[i].setrot(testmodel[i][2])
 	meshes[i].setscale(testmodel[i][3]/2)

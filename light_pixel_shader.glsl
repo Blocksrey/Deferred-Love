@@ -21,7 +21,7 @@ uniform float shadow;
 float pointlightbrightness(float r, vec3 l, vec3 n){
 	float d = length(l);
 	float c = max(0.0, dot(l, n));
-	float s = max(0.0, r - d);
+	float s = max(0.0, r - d);//attenuation
 	return c*s/(r*d*d*d);
 }
 
@@ -81,7 +81,7 @@ void effect(){
 		love_Canvases[0] = vec4(0.0, 0.0, 0.0, 1.0);
 	}else{
 		float brightness = pointlightbrightness(vertT[0].x, vertT[3].xyz - wvert, wnorm);
-		float visible = (1.0 - shadow) + shadow*screenraycast(8.0, wvert, vertT[3].xyz);
+		float visible = screenraycast(32.0*shadow, wvert, vertT[3].xyz);
 
 		love_Canvases[0] = vec4(visible*brightness*lightcolor*color, 1.0);
 	}
